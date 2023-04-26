@@ -5,6 +5,7 @@ local kong_nginx_stream_template = require "kong.templates.nginx_kong_stream"
 local nginx_main_inject_template = require "kong.templates.nginx_inject"
 local nginx_http_inject_template = require "kong.templates.nginx_kong_inject"
 local nginx_stream_inject_template = require "kong.templates.nginx_kong_stream_inject"
+local kong_nginx_lmdb_template = require "kong.templates.nginx_kong_lmdb"
 local system_constants = require "lua_system_constants"
 local process_secrets = require "kong.cmd.utils.process_secrets"
 local openssl_bignum = require "resty.openssl.bn"
@@ -400,6 +401,10 @@ local function compile_kong_stream_conf(kong_config)
   return compile_conf(kong_config, kong_nginx_stream_template)
 end
 
+local function compile_kong_lmdb_conf(kong_config)
+  return compile_conf(kong_config, kong_nginx_lmdb_template)
+end
+
 local function compile_nginx_conf(kong_config, template)
   template = template or default_nginx_template
   return compile_conf(kong_config, template)
@@ -727,6 +732,13 @@ local function prepare_prefix(kong_config, nginx_custom_template_path, skip_writ
   end
   pl_file.write(kong_config.nginx_kong_stream_inject_conf, nginx_stream_inject_conf)
 
+  -- write Kong's lmdb NGINX conf
+  local nginx_kong_lmdb_conf, err = compile_kong_lmdb_conf(kong_config)
+  if not nginx_kong_lmdb_conf then
+    return nil, err
+  end
+  pl_file.write(kong_config.nginx_kong_lmdb_conf, nginx_kong_lmdb_conf)
+
   -- testing written NGINX conf
   local ok, err = nginx_signals.check_conf(kong_config)
   if not ok then
@@ -811,6 +823,7 @@ return {
   compile_kong_conf = compile_kong_conf,
   compile_kong_gui_include_conf = compile_kong_gui_include_conf,
   compile_kong_stream_conf = compile_kong_stream_conf,
+  compile_kong_lmdb_conf = compile_kong_lmdb_conf,
   compile_nginx_conf = compile_nginx_conf,
   compile_nginx_main_inject_conf = compile_nginx_main_inject_conf,
   compile_nginx_http_inject_conf = compile_nginx_http_inject_conf,
