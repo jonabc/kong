@@ -8,7 +8,6 @@ $(el.name) $(el.value);
 > end
 
 include 'nginx-inject.conf';
-include 'nginx-kong-lmdb.conf';
 
 events {
     # injected nginx_events_* directives
