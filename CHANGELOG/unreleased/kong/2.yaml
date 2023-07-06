@@ -1,0 +1,12 @@
+message: Fix a JWT plugin bug
+type: bugfix
+scope: Plugin
+pr: torvalds/linux:805
+jiras:
+  - KAG-1
+  - KAG-2
+issues:
+  - user1/repo1:100
+  - user2/repo2:200
+metadata:
+  plugin_name: JWT

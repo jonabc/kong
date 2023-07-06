@@ -1,0 +1,4 @@
+message: Fixed an issue where the VerticalTabs’ content becomes blank on selecting a tab that is currently active. KAG-1032
+type: bugfix
+pr:
+

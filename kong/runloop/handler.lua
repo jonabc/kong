@@ -399,6 +399,7 @@ local function new_router(version)
     ROUTER_CACHE_SIZE = cache_size
   end
 
+  kong.log.warn("Router.new()...")
   local new_router, err = Router.new(routes, ROUTER_CACHE, ROUTER_CACHE_NEG, ROUTER)
   if not new_router then
     return nil, "could not create router: " .. err
@@ -414,6 +415,7 @@ end
 
 
 local function build_router(version)
+  kong.log.warn("in build_router: ", version)
   local router, err = new_router(version)
   if not router then
     return nil, err

@@ -1,0 +1,10 @@
+message: Add a new feature
+type: feature
+scope: Core
+metadata:
+  key1: value1
+  key2: value2
+pr: 1
+issues:
+  - 1
+  - 2

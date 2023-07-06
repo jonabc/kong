@@ -1,0 +1,4 @@
+message: Bumped lua-resty-session from 4.0.2 to 4.0.3
+type: dependency
+pr: 10338
+

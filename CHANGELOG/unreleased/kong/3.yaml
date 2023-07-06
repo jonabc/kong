@@ -1,0 +1,6 @@
+message: Add a breaking change 1
+type: breaking_change
+scope: Plugin
+metadata:
+  plugin_name: CORS
+

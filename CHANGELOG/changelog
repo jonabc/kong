@@ -1,0 +1,280 @@
+#!/usr/bin/env lua
+
+local pl_template = require "pl.template"
+local pl_tablex = require "pl.tablex"
+local pl_file = require "pl.file"
+local pl_dir = require "pl.dir"
+local pl_path = require "pl.path"
+local pl_stringx = require "pl.stringx"
+local lyaml = require "lyaml"
+local pl_app = require 'pl.lapp'
+
+
+local PATH_UNRELEASED = "unreleased"
+local GITHUB_REPO = "Kong/kong"
+local CHANGELOG_ENTRY_TEMPLATE = "changelog-entry-template.yaml"
+local JIRA_BASE_URL = "https://konghq.atlassian.net/browse/"
+
+
+local function parse_pr(pr)
+  if pr == nil or pr == lyaml.null then
+    return nil
+  end
+  local repo = GITHUB_REPO
+  local pr_id = tonumber(pr)
+  if not pr_id then
+    local parts = pl_stringx.split(pr, ":")
+    repo = parts[1]
+    pr_id = parts[2]
+  end
+  return {
+    id = pr_id,
+    link = string.format("https://github.com/%s/pull/%d", repo, pr_id),
+  }
+end
+
+
+local function parse_issues(issues)
+  if issues == nil or issues == lyaml.null then
+    return nil
+  end
+  local jira_items = {}
+  for i, issue in ipairs(issues or {}) do
+    local repo = GITHUB_REPO
+    local issue_no = tonumber(issue)
+    if not issue_no then
+      local parts = pl_stringx.split(issue, ":")
+      repo = parts[1]
+      issue_no = parts[2]
+    end
+    jira_items[i] = {
+      id = issue_no,
+      link = string.format("https://github.com/%s/issues/%d", repo, issue_no),
+    }
+  end
+  return jira_items
+end
+
+
+local function parse_jiras(jiras)
+  local jira_items = {}
+  for i, jira in ipairs(jiras or {}) do
+    jiras[i] = {
+      id = jira,
+      link = JIRA_BASE_URL .. jira
+    }
+  end
+  return jira_items
+end
+
+local function is_yaml(filename)
+  return pl_stringx.endswith(filename, ".yaml") or pl_stringx.endswith(filename, ".yml")
+end
+
+local function compile_template(data, conf_template)
+  local compile_env = {
+    _escape = ">",
+    _brackets = "{}",
+    _debug = true,
+    pairs = pairs,
+    ipairs = ipairs,
+    tostring = tostring,
+  }
+
+  compile_env = pl_tablex.merge(compile_env, data, true) -- union
+  local content, err = pl_template.substitute(conf_template, compile_env)
+  if not content then
+    return nil, "failed to compile template: " .. err
+  end
+
+  return content
+end
+
+local function collect_unreleased()
+  local data = {
+    kong = {
+      features = {},
+      bugfixes = {},
+      breaking_changes = {},
+      dependencies = {},
+      deprecations = {},
+    },
+    km = {
+      features = {},
+      bugfixes = {},
+      breaking_changes = {},
+      dependencies = {},
+      deprecations = {},
+    },
+    enterprise = {
+      features = {},
+      bugfixes = {},
+      breaking_changes = {},
+      dependencies = {},
+      deprecations = {},
+    },
+  }
+
+  local map = {
+    feature = "features",
+    bugfix = "bugfixes",
+    breaking_change = "breaking_changes",
+    dependency = "dependencies",
+    deprecation = "deprecations",
+  }
+
+  local files = assert(pl_dir.getfiles("unreleased/kong"))
+  for _, filename in ipairs(files) do
+    if is_yaml(filename) then
+      local content = pl_file.read(filename)
+      local entry = lyaml.load(content)
+
+      entry.pr = parse_pr(entry.pr)
+      entry.jiras = parse_jiras(entry.jiras)
+      entry.issues = parse_issues(entry.issues) or {}
+
+      if entry.scope == nil or entry.scope == lyaml.null then
+        entry.scope = ""
+      end
+
+      local key = map[entry.type]
+      if not data.kong[key][entry.scope] then
+        data.kong[key][entry.scope] = {}
+      end
+      table.insert(data.kong[key][entry.scope], entry)
+    end
+  end
+
+  local files = assert(pl_dir.getfiles("unreleased/kong-manager"))
+  for _, filename in ipairs(files) do
+    if is_yaml(filename) then
+      local content = pl_file.read(filename)
+      local entry = lyaml.load(content)
+
+      entry.pr = parse_pr(entry.pr)
+      entry.jiras = parse_jiras(entry.jiras)
+      entry.issues = parse_issues(entry.issues) or {}
+
+      if entry.scope == nil or entry.scope == lyaml.null then
+        entry.scope = ""
+      end
+
+      local key = map[entry.type]
+      if not data.km[key][entry.scope] then
+        data.km[key][entry.scope] = {}
+      end
+      table.insert(data.km[key][entry.scope], entry)
+    end
+  end
+
+  -- TODO enterprise
+
+  return data
+end
+
+local function generate(data)
+  local changelog_template = require "changelog-md-template"
+  return compile_template(data, changelog_template)
+end
+
+-- command: add
+-- add a changelog file
+local function add(filename, properties)
+  local folder = properties.folder
+  if not folder then
+    error("Invalid parameter folder")
+  end
+
+  local path = PATH_UNRELEASED .. "/" .. folder
+  if not pl_path.exists(path) then
+    assert(pl_dir.makepath(path))
+  end
+
+  local template = pl_file.read(CHANGELOG_ENTRY_TEMPLATE)
+  local content = compile_template(properties, template)
+  local filename = path .. "/" .. filename
+  assert(pl_file.write(filename, content))
+  print("File " .. filename .. " added")
+end
+
+
+-- command: release
+-- release a release note
+local function release(version)
+  local data = collect_unreleased()
+  data.version = version
+  local content, err = generate(data)
+  if pl_path.exists(version) then
+    error("directory exists, please manually remove " .. version)
+  end
+  os.execute("mv " .. PATH_UNRELEASED .. " " .. version)
+  local filename = version .. "/changelog.md"
+  assert(pl_file.write(filename, content))
+  assert(pl_dir.makepath(PATH_UNRELEASED))
+
+  print("Generate released note successfully.")
+end
+
+
+-- command: preview
+-- preview the release note
+local function preview(version)
+  local data = collect_unreleased()
+  data.version = version
+  local content, err = generate(data)
+  print(content)
+end
+
+
+local cmds = {
+  add = function(args)
+    local filename = table.remove(args, 1)
+    if not filename then
+      error("Missing filename")
+    end
+    add(filename, args)
+  end,
+  release = function(args)
+    local version = args[1]
+    release(version)
+  end,
+  preview = function(args)
+    local version = args[1]
+    preview(version)
+  end,
+}
+
+
+local args = pl_app [[
+Usage: changelog <command> [options]
+
+Commands:
+  add <filename> [options]           add a changelog file.
+  release <version> [options]        release a release note based on the files in the CHANGELOG/unreleased directory.
+  preview <version> [options]        preview a release note based on the files in the CHANGELOG/unreleased directory.
+
+Options:
+  -h, --help                         display help for command
+  -m, --message (optional string)    changelog message
+  -t, --type (optional string)       changelog type
+  --pr (optional string)             changelog pr
+  --folder (string default kong)     which folder under unreleased
+
+Examples:
+  changelog preview 1.0.0
+  changelog release 1.0.0
+  changelog add 1.yaml
+]]
+
+local cmd_name = table.remove(args, 1)
+if not cmd_name then
+  pl_app.quit("Missing command")
+end
+
+local cmd_fn = cmds[cmd_name]
+if not cmds[cmd_name] then
+  pl_app.quit("Invalid command: " .. cmd_name)
+end
+
+
+cmd_fn(args)
