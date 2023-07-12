@@ -94,6 +94,8 @@
   [#11166](https://github.com/Kong/kong/pull/11166)
 - Make `kong vault get` CLI command work in dbless mode
   [#10675](https://github.com/Kong/kong/pull/10675)
+- Drop luasocket in cli
+  [#11177](https://github.com/Kong/kong/pull/11177)
 
 #### Admin API
 
