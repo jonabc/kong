@@ -92,6 +92,8 @@
   [#11082](https://github.com/Kong/kong/pull/11082)
 - Fix an issue where the router of flavor `expressions` can not configure https redirection.
   [#11166](https://github.com/Kong/kong/pull/11166)
+- Make `kong vault get` CLI command work in dbless mode
+  [#10675](https://github.com/Kong/kong/pull/10675)
 
 #### Admin API
 
@@ -347,8 +349,6 @@
   leads to the corruption of chunk-encoded response data.
   [#10816](https://github.com/Kong/kong/pull/10816)
   [#10824](https://github.com/Kong/kong/pull/10824)
-- Make `kong vault get` CLI command work in dbless mode
-  [#10675](https://github.com/Kong/kong/pull/10675)
 
 
 #### Admin API
