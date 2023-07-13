@@ -1980,6 +1980,7 @@ describe("Configuration loader", function()
       local CONF_NO_VAULTS = {
         prefix = true,
         vaults = true,
+        database = true,
         lmdb_environment_path = true,
         lmdb_map_size = true,
         lua_ssl_trusted_certificate = true,
@@ -2001,6 +2002,7 @@ describe("Configuration loader", function()
         -- CONF_NO_VAULTS
         prefix = true,
         vaults = true,
+        database = true,
         lmdb_environment_path = true,
         lmdb_map_size = true,
         lua_ssl_trusted_certificate = true,
