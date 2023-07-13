@@ -606,12 +606,4 @@ return function(options)
   end
 
   require "kong.deprecation".init(options.cli)
-
-  -- some libraries used in test like spec/helpers
-  -- calls cosocket in module level, and as LuaJIT's
-  -- `require` is implemented in C, this throws
-  -- "attempt to yield across C-call boundary" error
-  -- the following pure-lua implementation is to bypass
-  -- this limitation, without need to modify all tests
-  _G.require = require "kong.require".require
 end
