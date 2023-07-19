@@ -841,6 +841,7 @@ describe("NGINX conf compiler", function()
         return ngx_conf
       end
       local ngx_cfg = function(cfg, debug) return _compile(cfg, prefix_handler.compile_nginx_conf, debug) end
+      local kong_ngx_cfg = function(cfg, debug) return _compile(cfg, prefix_handler.compile_kong_conf, debug) end
 
       local debug = false
       it("has no wasm{} block by default", function()
@@ -862,6 +863,18 @@ describe("NGINX conf compiler", function()
         assert.matches(
           "wasm {.+shm_kv cache 10m.+shm_kv counters 10m;.+}",
           ngx_cfg({ wasm = true, nginx_wasm_shm_cache="10m", nginx_wasm_shm_counters="10m"}, debug)
+        )
+      end)
+      it("injects default configurations if wasm=on", function()
+        assert.matches(
+          ".+wasm_lua_resolver on;.+",
+          kong_ngx_cfg({ wasm = true, }, debug)
+        )
+      end)
+      it("does not inject default configurations if wasm=off", function()
+        assert.not_matches(
+          ".+wasm_lua_resolver on;.+",
+          kong_ngx_cfg({ wasm = false, }, debug)
         )
       end)
       it("injects runtime-specific directives (wasmtime)", function()
@@ -938,48 +951,75 @@ describe("NGINX conf compiler", function()
             }, debug)
           )
         end)
-        it("proxy_connect_timeout", function()
+        it("lua_socket_connect_timeout (http)", function()
           assert.matches(
-            "wasm {.+socket_connect_timeout 1s;.+}",
-            ngx_cfg({
+            ".+wasm_socket_connect_timeout 1s;.+",
+            kong_ngx_cfg({
               wasm = true,
-              nginx_http_proxy_connect_timeout = "1s",
+              nginx_http_lua_socket_connect_timeout = "1s",
             }, debug)
           )
         end)
-        it("proxy_read_timeout", function()
+        it("lua_socket_connect_timeout (proxy)", function()
           assert.matches(
-            "wasm {.+socket_read_timeout 1s;.+}",
-            ngx_cfg({
+            "server {.+wasm_socket_connect_timeout 1s;.+}",
+            kong_ngx_cfg({
               wasm = true,
-              nginx_http_proxy_read_timeout = "1s",
+              nginx_proxy_lua_socket_connect_timeout = "1s",
             }, debug)
           )
         end)
-        it("proxy_send_timeout", function()
+        it("lua_socket_read_timeout (http)", function()
           assert.matches(
-            "wasm {.+socket_send_timeout 1s;.+}",
-            ngx_cfg({
+            ".+wasm_socket_read_timeout 1s;.+",
+            kong_ngx_cfg({
               wasm = true,
-              nginx_http_proxy_send_timeout = "1s",
+              nginx_http_lua_socket_read_timeout = "1s",
             }, debug)
           )
         end)
-        it("proxy_buffer_size", function()
+        it("lua_socket_read_timeout (proxy)", function()
           assert.matches(
-            "wasm {.+socket_buffer_size 1m;.+}",
-            ngx_cfg({
+            "server {.+wasm_socket_read_timeout 1s;.+}",
+            kong_ngx_cfg({
               wasm = true,
-              nginx_http_proxy_buffer_size = "1m",
+              nginx_proxy_lua_socket_read_timeout = "1s",
             }, debug)
           )
         end)
-        it("large_client_header_buffers", function()
+        it("proxy_send_timeout (http)", function()
           assert.matches(
-            "wasm {.+socket_large_buffers 4 24k;.+}",
-            ngx_cfg({
+            ".+wasm_socket_send_timeout 1s;.+",
+            kong_ngx_cfg({
               wasm = true,
-              nginx_http_large_client_header_buffers = "4 24k",
+              nginx_http_lua_socket_send_timeout = "1s",
+            }, debug)
+          )
+        end)
+        it("proxy_send_timeout (proxy)", function()
+          assert.matches(
+            "server {.+wasm_socket_send_timeout 1s;.+}",
+            kong_ngx_cfg({
+              wasm = true,
+              nginx_proxy_lua_socket_send_timeout = "1s",
+            }, debug)
+          )
+        end)
+        it("proxy_buffer_size (http)", function()
+          assert.matches(
+            ".+wasm_socket_buffer_size 1m;.+",
+            kong_ngx_cfg({
+              wasm = true,
+              nginx_http_lua_socket_buffer_size = "1m",
+            }, debug)
+          )
+        end)
+        it("proxy_buffer_size (proxy)", function()
+          assert.matches(
+            "server {.+wasm_socket_buffer_size 1m;.+}",
+            kong_ngx_cfg({
+              wasm = true,
+              nginx_proxy_lua_socket_buffer_size = "1m",
             }, debug)
           )
         end)
